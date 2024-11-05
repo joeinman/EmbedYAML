@@ -1,7 +1,8 @@
 #pragma once
 
-#include <optional>
 #include <functional>
+#include <optional>
+#include <vector>
 #include <string>
 
 namespace EmbedYAML {
@@ -33,7 +34,7 @@ public:
     EmbedYAML(EYFileOpenFunction open, EYFileCloseFunction close, EYReadCharFunction read_char, void* user_context = nullptr);
     ~EmbedYAML();
 
-    void readFile(std::string filename);
+    std::vector<Token> parseFile(std::string filename);
 
     void* getUserContext() const { return m_user_context; }
 private:
