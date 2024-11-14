@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 #include <string>
+#include <yaml.h>
 
 namespace EmbedYAML {
 

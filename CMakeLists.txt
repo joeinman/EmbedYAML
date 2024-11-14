@@ -12,3 +12,9 @@ target_sources(EmbedYAML PRIVATE
 target_include_directories(EmbedYAML PUBLIC
     "include"
 )
+
+target_link_libraries(EmbedYAML PUBLIC
+    yaml
+)
+
+add_subdirectory(external/libyaml)
