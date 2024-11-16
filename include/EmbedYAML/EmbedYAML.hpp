@@ -1,10 +1,12 @@
 #pragma once
 
+#include <EmbedYAML/YAMLNode.hpp>
 #include <functional>
 #include <optional>
 #include <vector>
 #include <string>
 #include <yaml.h>
+#include <stack>
 
 namespace EmbedYAML {
 
@@ -19,7 +21,7 @@ public:
     EmbedYAML(EYFileOpenFunction open, EYFileCloseFunction close, EYReadCharFunction read_char, void* user_context = nullptr);
     ~EmbedYAML();
 
-    bool parseFile(std::string filename);
+    YAMLNode parseFile(std::string filename);
 
     void* getUserContext() const { return m_user_context; }
 private:

@@ -1,74 +1,5 @@
 #include "EmbedYAML/EmbedYAML.hpp"
 
-#define STRVAL(x) ((x) ? (char*)(x) : "")
-
-void indent(int level)
-{
-    int i;
-    for (i = 0; i < level; i++) {
-        printf("%s", "  ");
-    }
-}
-
-void print_event(yaml_event_t *event)
-{
-    static int level = 0;
-
-    switch (event->type) {
-    case YAML_NO_EVENT:
-        indent(level);
-        printf("no-event (%d)\n", event->type);
-        break;
-    case YAML_STREAM_START_EVENT:
-        indent(level++);
-        printf("stream-start-event (%d)\n", event->type);
-        break;
-    case YAML_STREAM_END_EVENT:
-        indent(--level);
-        printf("stream-end-event (%d)\n", event->type);
-        break;
-    case YAML_DOCUMENT_START_EVENT:
-        indent(level++);
-        printf("document-start-event (%d)\n", event->type);
-        break;
-    case YAML_DOCUMENT_END_EVENT:
-        indent(--level);
-        printf("document-end-event (%d)\n", event->type);
-        break;
-    case YAML_ALIAS_EVENT:
-        indent(level);
-        printf("alias-event (%d)\n", event->type);
-        break;
-    case YAML_SCALAR_EVENT:
-        indent(level);
-        printf("scalar-event (%d) = {value=\"%s\", length=%d}\n",
-               event->type,
-               STRVAL(event->data.scalar.value),
-               (int)event->data.scalar.length);
-        break;
-    case YAML_SEQUENCE_START_EVENT:
-        indent(level++);
-        printf("sequence-start-event (%d)\n", event->type);
-        break;
-    case YAML_SEQUENCE_END_EVENT:
-        indent(--level);
-        printf("sequence-end-event (%d)\n", event->type);
-        break;
-    case YAML_MAPPING_START_EVENT:
-        indent(level++);
-        printf("mapping-start-event (%d)\n", event->type);
-        break;
-    case YAML_MAPPING_END_EVENT:
-        indent(--level);
-        printf("mapping-end-event (%d)\n", event->type);
-        break;
-    }
-    if (level < 0) {
-        fprintf(stderr, "indentation underflow!\n");
-        level = 0;
-    }
-}
-
 namespace EmbedYAML {
 
 EmbedYAML::EmbedYAML(EYFileOpenFunction open,
@@ -86,10 +17,14 @@ EmbedYAML::~EmbedYAML()
 {
 }
 
-bool EmbedYAML::parseFile(std::string filename)
+YAMLNode EmbedYAML::parseFile(std::string filename)
 {
+    YAMLNode root("root");
+    std::stack<YAMLNode*> node_stack;
+    node_stack.push(&root);
+
     if (m_file_open_function(this, filename) < 0)
-        return false;
+        return root;
 
         yaml_parser_t parser;
     yaml_parser_initialize(&parser);
@@ -116,6 +51,10 @@ bool EmbedYAML::parseFile(std::string filename)
         this
     );
 
+    bool mapping_started = true;
+    std::string key = "";
+    std::string value = "";
+
     bool done = false;
     while(!done)
     {
@@ -125,7 +64,43 @@ bool EmbedYAML::parseFile(std::string filename)
             break;
         }
 
-        print_event(&event);
+        switch (event.type)
+        {
+        case YAML_SCALAR_EVENT:
+            {
+                if (mapping_started) {
+                    node_stack.top()->addSequence((char*)event.data.scalar.value, std::vector<YAMLNode>());
+                    node_stack.push(&node_stack.top()->operator[]((char*)event.data.scalar.value));
+                    std::cout << "Map: " << (char*)event.data.scalar.value << std::endl;
+                    mapping_started = false;
+                } else {
+                    if (key.empty()) {
+                        key = (char*)event.data.scalar.value;
+                    } else {
+                        value = (char*)event.data.scalar.value;
+                        node_stack.top()->addScalar(key, value);
+                        std::cout << key << " = " << value << std::endl;
+                        key = "";
+                        value = "";
+                    }
+                }
+            }
+            break;
+        case YAML_MAPPING_START_EVENT:
+        case YAML_SEQUENCE_START_EVENT:
+            {
+                // mapping_started = true;
+            }
+            break;
+        case YAML_MAPPING_END_EVENT:
+        case YAML_SEQUENCE_END_EVENT:
+            {
+                node_stack.pop();
+            }
+            break;
+        default:
+            break;
+        }
 
         done = (event.type == YAML_STREAM_END_EVENT);
         yaml_event_delete(&event);
@@ -134,9 +109,9 @@ bool EmbedYAML::parseFile(std::string filename)
     yaml_parser_delete(&parser);
 
     if (m_file_close_function(this, filename) < 0)
-        return false;
+        return root;
 
-    return true;
+    return root;
 }
 
 } // namespace EmbedYAML
