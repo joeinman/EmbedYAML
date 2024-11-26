@@ -2,6 +2,8 @@
 
 namespace EmbedYAML {
 
+void print_event(yaml_event_t event);
+
 EmbedYAML::EmbedYAML(EYFileOpenFunction open,
                      EYFileCloseFunction close,
                      EYReadCharFunction read_char,
@@ -56,6 +58,7 @@ YAMLNode EmbedYAML::parseFile(std::string filename)
     std::string value = "";
 
     bool done = false;
+    bool whole_map_started = false;
     while(!done)
     {
         yaml_event_t event;
@@ -63,6 +66,8 @@ YAMLNode EmbedYAML::parseFile(std::string filename)
             fprintf(stderr, "parser error %d\n", parser.error);
             break;
         }
+
+        print_event(event);
 
         switch (event.type)
         {
@@ -79,7 +84,7 @@ YAMLNode EmbedYAML::parseFile(std::string filename)
                     } else {
                         value = (char*)event.data.scalar.value;
                         node_stack.top()->addScalar(key, value);
-                        std::cout << key << " = " << value << std::endl;
+                        std::cout << "Scalar: " << key << " = " << value << std::endl;
                         key = "";
                         value = "";
                     }
@@ -89,7 +94,10 @@ YAMLNode EmbedYAML::parseFile(std::string filename)
         case YAML_MAPPING_START_EVENT:
         case YAML_SEQUENCE_START_EVENT:
             {
-                // mapping_started = true;
+                // if(whole_map_started)
+                //     mapping_started = true;
+                // else
+                //     whole_map_started = true;
             }
             break;
         case YAML_MAPPING_END_EVENT:
@@ -112,6 +120,49 @@ YAMLNode EmbedYAML::parseFile(std::string filename)
         return root;
 
     return root;
+}
+
+void print_event(yaml_event_t event)
+{
+    std::cout << "Event type: ";
+    switch (event.type)
+    {
+    case YAML_NO_EVENT:
+        std::cout << "No event" << std::endl;
+        break;
+    case YAML_STREAM_START_EVENT:
+        std::cout << "Stream start" << std::endl;
+        break;
+    case YAML_STREAM_END_EVENT:
+        std::cout << "Stream end" << std::endl;
+        break;
+    case YAML_DOCUMENT_START_EVENT:
+        std::cout << "Document start" << std::endl;
+        break;
+    case YAML_DOCUMENT_END_EVENT:
+        std::cout << "Document end" << std::endl;
+        break;
+    case YAML_ALIAS_EVENT:
+        std::cout << "Alias" << std::endl;
+        break;
+    case YAML_SCALAR_EVENT:
+        std::cout << "Scalar" << std::endl;
+        break;
+    case YAML_SEQUENCE_START_EVENT:
+        std::cout << "Sequence start" << std::endl;
+        break;
+    case YAML_SEQUENCE_END_EVENT:
+        std::cout << "Sequence end" << std::endl;
+        break;
+    case YAML_MAPPING_START_EVENT:
+        std::cout << "Mapping start" << std::endl;
+        break;
+    case YAML_MAPPING_END_EVENT:
+        std::cout << "Mapping end" << std::endl;
+        break;
+    default:
+        break;
+    }
 }
 
 } // namespace EmbedYAML
