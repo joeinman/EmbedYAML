@@ -205,7 +205,7 @@ bool EmbedYAML::parseMappingEvent(yaml_parser_t&   parser,
 }
 
 //============================================================================
-// Emitting Function
+// Emitting Functions
 //============================================================================
 
 std::expected<std::string, EmbedYAMLError> EmbedYAML::emitNode(const Node& node, int indentLevel) const noexcept

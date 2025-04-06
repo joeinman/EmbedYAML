@@ -28,7 +28,7 @@ int main()
     auto                 result = e.parse(yaml_string);
     if (!result.has_value())
     {
-        std::cerr << "Error parsing YAML: " << result.error().message << std::endl;
+        std::cerr << "Error parsing YAML: " << result.error() << std::endl;
         return 1;
     }
 

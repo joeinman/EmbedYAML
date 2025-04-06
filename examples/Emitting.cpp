@@ -29,7 +29,7 @@ int main()
     auto result = e.emit(node);
     if (!result.has_value())
     {
-        std::cerr << "Error emitting YAML: " << result.error().message << std::endl;
+        std::cerr << "Error emitting YAML: " << result.error() << std::endl;
         return 1;
     }
     std::cout << result.value();
