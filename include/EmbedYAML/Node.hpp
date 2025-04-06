@@ -12,12 +12,15 @@
 
 #include <charconv>
 #include <optional>
+#include <expected>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <variant>
 #include <memory>
 #include <cassert>
+
+#include "EmbedYAML/Error.hpp"
 
 namespace EmbedYAML
 {
@@ -81,19 +84,11 @@ public:
     bool     isMap() const { return type == NodeType::Map; }
     NodeType getType() const { return type; }
 
-    // For scalars.
-    std::optional<std::string> asString() const
-    {
-        if (!isScalar())
-            return std::nullopt;
-        return std::get<ScalarType>(value);
-    }
-
     template <typename T>
-    std::optional<T> as() const
+    std::expected<T, EmbedYAMLError> as() const
     {
         if (!isScalar())
-            return std::nullopt;
+            return std::unexpected(EmbedYAMLError{EmbedYAMLErrorType::TypeError, "Node is not a Scalar"});
         const auto& s = std::get<ScalarType>(value);
         if constexpr (std::is_same_v<T, std::string>)
             return s;
@@ -101,45 +96,20 @@ public:
         {
             T result{};
             auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
-            if (ec == std::errc())
-                return result;
+            if (ec != std::errc())
+                return std::unexpected(EmbedYAMLError{EmbedYAMLErrorType::ScalarConversionError, "Conversion failed"});
+            return result;
         }
         else if constexpr (std::is_floating_point_v<T>)
         {
             T result{};
             auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
-            if (ec == std::errc())
-                return result;
+            if (ec != std::errc())
+                return std::unexpected(EmbedYAMLError{EmbedYAMLErrorType::ScalarConversionError, "Conversion failed"});
+            return result;
         }
-        return std::nullopt;
-    }
-
-    // Return pointer to underlying Sequence (or nullptr if not a sequence).
-    SequenceType* asSequence()
-    {
-        if (isSequence())
-            return &std::get<SequenceType>(value);
-        return nullptr;
-    }
-    const SequenceType* asSequence() const
-    {
-        if (isSequence())
-            return &std::get<SequenceType>(value);
-        return nullptr;
-    }
-
-    // Return pointer to underlying Map (or nullptr if not a map).
-    MapType* asMap()
-    {
-        if (isMap())
-            return &std::get<MapType>(value);
-        return nullptr;
-    }
-    const MapType* asMap() const
-    {
-        if (isMap())
-            return &std::get<MapType>(value);
-        return nullptr;
+        return std::unexpected(
+            EmbedYAMLError{EmbedYAMLErrorType::ScalarConversionError, "Unsupported type conversion"});
     }
 
     // Map access operator.
@@ -212,6 +182,43 @@ public:
 private:
     NodeType    type;
     NodeVariant value;
+    friend class EmbedYAML;
+
+    // For scalars.
+    std::expected<std::string, EmbedYAMLError> asString() const
+    {
+        if (!isScalar())
+            return std::unexpected(EmbedYAMLError{EmbedYAMLErrorType::TypeError, "Node is not a Scalar"});
+        return std::get<ScalarType>(value);
+    }
+
+    // Return pointer to underlying Sequence (or nullptr if not a sequence).
+    SequenceType* asSequence()
+    {
+        if (isSequence())
+            return &std::get<SequenceType>(value);
+        return nullptr;
+    }
+    const SequenceType* asSequence() const
+    {
+        if (isSequence())
+            return &std::get<SequenceType>(value);
+        return nullptr;
+    }
+
+    // Return pointer to underlying Map (or nullptr if not a map).
+    MapType* asMap()
+    {
+        if (isMap())
+            return &std::get<MapType>(value);
+        return nullptr;
+    }
+    const MapType* asMap() const
+    {
+        if (isMap())
+            return &std::get<MapType>(value);
+        return nullptr;
+    }
 };
 
 }  // namespace EmbedYAML

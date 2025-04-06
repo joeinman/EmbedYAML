@@ -17,7 +17,7 @@ int main()
 {
     std::string yaml_string = "person:\n"
                               "  name: John Doe\n"
-                              "  age: 30\n"
+                              "  age: 31\n"
                               "  email: john.doe@example.com\n"
                               "  address:\n"
                               "    street: 123 Main St\n"

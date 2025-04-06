@@ -17,10 +17,15 @@
 enum class EmbedYAMLErrorType
 {
     ParseError,
-    EmissionError
+    EmissionError,
+    TypeError,
+    ScalarConversionError
 };
 
-static std::array<std::string, 2> EmbedYAMLErrorTypeToString = {"Parse Error", "Emission Error"};
+static std::array<std::string, 4> EmbedYAMLErrorTypeToString = {"Parse Error",
+                                                                "Emission Error",
+                                                                "Type Error",
+                                                                "Scalar Conversion Error"};
 
 struct EmbedYAMLError
 {
