@@ -43,6 +43,27 @@ public:
             value = MapType{};
     }
 
+    template <typename T>
+    Node& emplace_back(const T& v)
+    {
+        if (isSequence())
+        {
+            auto& seq = std::get<SequenceType>(value);
+
+            if constexpr (std::is_same_v<T, Node>)
+            {
+                seq.emplace_back(v);
+            }
+            else
+            {
+                Node node;
+                node = v;
+                seq.emplace_back(node);
+            }
+        }
+        return *this;
+    }
+
     // Access a child node by key.
     Node& operator[](const std::string& key)
     {
@@ -67,8 +88,7 @@ public:
         if (isSequence())
         {
             auto& seq = std::get<SequenceType>(value);
-            if (index < seq.size())
-                return seq[index];
+            return seq[index];
         }
         else if (isMap())
         {

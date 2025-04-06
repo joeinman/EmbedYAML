@@ -19,10 +19,12 @@ int main()
 {
     EmbedYAML::EmbedYAML e;
 
-    auto node              = Node(NodeType::Map);
-    node["person"]         = Node(NodeType::Map);
-    node["person"]["name"] = "John Doe";
-    node["person"]["age"]  = 30;
+    auto node      = Node(NodeType::Map);
+    node["person"] = Node(NodeType::Sequence);
+    node["person"].emplace_back("Name 1");
+    node["person"].emplace_back("Name 2");
+    node["other"]        = Node(NodeType::Map);
+    node["other"]["key"] = 42;
 
     auto result = e.emit(node);
     if (!result.has_value())
