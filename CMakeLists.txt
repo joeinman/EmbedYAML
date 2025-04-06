@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.28)
 add_subdirectory(external/libyaml)
 
 project(EmbedLog)
+set(CMAKE_CXX_STANDARD 23)
+
 add_library(EmbedYAML STATIC)
 
 target_sources(EmbedYAML PRIVATE
