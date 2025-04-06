@@ -1,18 +1,42 @@
+/*
+ * Copyright (c) 2025, Joe Inman
+ *
+ * Licensed under the MIT License.
+ * You may obtain a copy of the License at:
+ *     https://opensource.org/licenses/MIT
+ *
+ * This file is part of the EmbedYAML Library.
+ */
+
 #pragma once
 
 #include <charconv>
-#include <map>
 #include <optional>
 #include <sstream>
 #include <string>
-#include <variant>
 #include <vector>
-#include <type_traits>
+#include <variant>
+#include <memory>
+#include <cassert>
 
 namespace EmbedYAML
 {
 
 class Node;
+
+using NullType     = std::monostate;
+using ScalarType   = std::string;
+using SequenceType = std::vector<std::unique_ptr<Node>>;
+
+struct MapEntry
+{
+    std::string           key;
+    std::unique_ptr<Node> value;
+};
+
+using MapType = std::vector<MapEntry>;
+
+using NodeVariant = std::variant<NullType, ScalarType, SequenceType, MapType>;
 
 enum class NodeType
 {
@@ -21,154 +45,151 @@ enum class NodeType
     Sequence,
     Map
 };
-typedef std::monostate               NullType;
-typedef std::string                  ScalarType;
-typedef std::vector<Node>            SequenceType;
-typedef std::pair<std::string, Node> MapEntry;
-typedef std::vector<MapEntry>        MapType;
-using NodeVariant = std::variant<NullType, ScalarType, SequenceType, MapType>;
 
 class Node
 {
 public:
-    Node(NodeType type = NodeType::Null) : type(type)
+    Node() : type(NodeType::Null), value(NullType{}) {}
+    explicit Node(NodeType t) : type(t)
     {
-        if (type == NodeType::Null)
+        switch (t)
+        {
+        case NodeType::Null:
             value = NullType{};
-        else if (type == NodeType::Scalar)
+            break;
+        case NodeType::Scalar:
             value = ScalarType{};
-        else if (type == NodeType::Sequence)
+            break;
+        case NodeType::Sequence:
             value = SequenceType{};
-        else if (type == NodeType::Map)
+            break;
+        case NodeType::Map:
             value = MapType{};
+            break;
+        }
     }
 
-    template <typename T>
-    Node& emplace_back(const T& v)
-    {
-        if (isSequence())
-        {
-            auto& seq = std::get<SequenceType>(value);
+    // Disable copy because of unique_ptr members.
+    Node(const Node&)                = delete;
+    Node& operator=(const Node&)     = delete;
+    Node(Node&&) noexcept            = default;
+    Node& operator=(Node&&) noexcept = default;
 
-            if constexpr (std::is_same_v<T, Node>)
-            {
-                seq.emplace_back(v);
-            }
-            else
-            {
-                Node node;
-                node = v;
-                seq.emplace_back(node);
-            }
-        }
-        return *this;
-    }
+    bool     isNull() const { return type == NodeType::Null; }
+    bool     isScalar() const { return type == NodeType::Scalar; }
+    bool     isSequence() const { return type == NodeType::Sequence; }
+    bool     isMap() const { return type == NodeType::Map; }
+    NodeType getType() const { return type; }
 
-    // Access a child node by key.
-    Node& operator[](const std::string& key)
-    {
-        if (isMap())
-        {
-            auto& vec = std::get<MapType>(value);
-            for (auto& [k, v] : vec)
-            {
-                if (k == key)
-                    return v;
-            }
-
-            // If the key does not exist, create a new entry.
-            vec.emplace_back(key, Node{});
-            return vec.back().second;
-        }
-        return *this;
-    }
-
-    Node& operator[](const size_t& index)
-    {
-        if (isSequence())
-        {
-            auto& seq = std::get<SequenceType>(value);
-            return seq[index];
-        }
-        else if (isMap())
-        {
-            auto& vec = std::get<MapType>(value);
-            if (index < vec.size())
-                return vec[index].second;
-        }
-        return *this;
-    }
-
-    size_t size() const
-    {
-        if (isSequence())
-        {
-            return std::get<SequenceType>(value).size();
-        }
-        else if (isMap())
-        {
-            return std::get<MapType>(value).size();
-        }
-        return 1;
-    }
-
-    template <typename T>
-    T as() const
+    // For scalars.
+    std::optional<std::string> asString() const
     {
         if (!isScalar())
-            return T{};
-        const ScalarType& str = std::get<ScalarType>(value);
+            return std::nullopt;
+        return std::get<ScalarType>(value);
+    }
 
+    template <typename T>
+    std::optional<T> as() const
+    {
+        if (!isScalar())
+            return std::nullopt;
+        const auto& s = std::get<ScalarType>(value);
         if constexpr (std::is_same_v<T, std::string>)
-        {
-            return str;
-        }
+            return s;
         else if constexpr (std::is_integral_v<T>)
         {
             T result{};
-            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
             if (ec == std::errc())
-            {
                 return result;
-            }
         }
         else if constexpr (std::is_floating_point_v<T>)
         {
             T result{};
-            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
             if (ec == std::errc())
-            {
                 return result;
-            }
         }
-
-        return T{};
+        return std::nullopt;
     }
 
-    // Overload the assignment operator to set the value of a node.
+    // Return pointer to underlying Sequence (or nullptr if not a sequence).
+    SequenceType* asSequence()
+    {
+        if (isSequence())
+            return &std::get<SequenceType>(value);
+        return nullptr;
+    }
+    const SequenceType* asSequence() const
+    {
+        if (isSequence())
+            return &std::get<SequenceType>(value);
+        return nullptr;
+    }
+
+    // Return pointer to underlying Map (or nullptr if not a map).
+    MapType* asMap()
+    {
+        if (isMap())
+            return &std::get<MapType>(value);
+        return nullptr;
+    }
+    const MapType* asMap() const
+    {
+        if (isMap())
+            return &std::get<MapType>(value);
+        return nullptr;
+    }
+
+    // Map access operator.
+    Node& operator[](const std::string& key)
+    {
+        assert(isMap() && "Node is not a Map");
+        auto& map = std::get<MapType>(value);
+        for (auto& entry : map)
+        {
+            if (entry.key == key)
+                return *entry.value;
+        }
+        // Not found: create a new null node.
+        map.push_back({key, std::make_unique<Node>(NodeType::Null)});
+        return *map.back().value;
+    }
+
+    // Sequence access operator.
+    Node& operator[](size_t index)
+    {
+        assert(isSequence() && "Node is not a Sequence");
+        auto& seq = std::get<SequenceType>(value);
+        assert(index < seq.size() && "Index out of range");
+        return *seq[index];
+    }
+
+    // Append a new element to a sequence.
+    template <typename T>
+    Node& emplace_back(const T& v)
+    {
+        assert(isSequence() && "Node is not a Sequence");
+        auto& seq = std::get<SequenceType>(value);
+        if constexpr (std::is_same_v<T, Node>)
+        {
+            seq.push_back(std::make_unique<Node>(std::move(const_cast<Node&>(v))));
+        }
+        else
+        {
+            Node temp;
+            temp = v;
+            seq.push_back(std::make_unique<Node>(std::move(temp)));
+        }
+        return *this;
+    }
+
+    // Assignment operator for arithmetic and convertible types.
     template <typename T>
     Node& operator=(const T& v)
     {
-        if constexpr (std::is_same_v<T, Node>)
-        {
-            // Allow self-assignment or copying a Node
-            if (this != &v)
-            {
-                type  = v.type;
-                value = v.value;
-            }
-        }
-        else if constexpr (std::is_same_v<T, std::vector<Node>>)
-        {
-            type  = NodeType::Sequence;
-            value = v;
-        }
-        else if constexpr (std::is_same_v<T, std::vector<MapEntry>>)
-        {
-            type  = NodeType::Map;
-            value = v;
-        }
-        else if constexpr (std::is_arithmetic_v<T>)
+        if constexpr (std::is_arithmetic_v<T>)
         {
             type  = NodeType::Scalar;
             value = std::to_string(v);
@@ -180,7 +201,6 @@ public:
         }
         else
         {
-            // Fallback: use stringstream for any other type
             type = NodeType::Scalar;
             std::ostringstream oss;
             oss << v;
@@ -189,14 +209,9 @@ public:
         return *this;
     }
 
-    bool isScalar() const { return type == NodeType::Scalar; }
-    bool isSequence() const { return type == NodeType::Sequence; }
-    bool isMap() const { return type == NodeType::Map; }
-
 private:
-    NodeType    type  = NodeType::Null;
-    NodeVariant value = std::monostate();
-    friend class EmbedYAML;
+    NodeType    type;
+    NodeVariant value;
 };
 
 }  // namespace EmbedYAML

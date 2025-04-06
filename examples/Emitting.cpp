@@ -8,10 +8,10 @@
  * This file is part of the EmbedYAML Library.
  */
 
-#include <EmbedYAML/EmbedYAML.hpp>
-
 #include <iostream>
 #include <string>
+
+#include <EmbedYAML/EmbedYAML.hpp>
 
 using namespace EmbedYAML;
 
@@ -19,7 +19,7 @@ int main()
 {
     EmbedYAML::EmbedYAML e;
 
-    auto node      = Node(NodeType::Map);
+    Node node(NodeType::Map);
     node["person"] = Node(NodeType::Sequence);
     node["person"].emplace_back("Name 1");
     node["person"].emplace_back("Name 2");
@@ -29,7 +29,7 @@ int main()
     auto result = e.emit(node);
     if (!result.has_value())
     {
-        std::cerr << "Error emitting YAML" << std::endl;
+        std::cerr << "Error emitting YAML: " << result.error().message << std::endl;
         return 1;
     }
     std::cout << result.value();

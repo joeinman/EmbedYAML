@@ -26,19 +26,17 @@ int main()
 
     EmbedYAML::EmbedYAML e;
     auto                 result = e.parse(yaml_string);
-
     if (!result.has_value())
     {
-        std::cerr << "Error parsing YAML" << std::endl;
+        std::cerr << "Error parsing YAML: " << result.error().message << std::endl;
         return 1;
     }
 
-    auto person = result.value()["person"];
-
-    std::cout << "Name: " << person["name"].as<std::string>() << std::endl;
-    std::cout << "Age: " << person["age"].as<int>() << std::endl;
-    std::cout << "Email: " << person["email"].as<std::string>() << std::endl;
-    std::cout << "Street: " << person["address"]["street"].as<std::string>() << std::endl;
-    std::cout << "City: " << person["address"]["city"].as<std::string>() << std::endl;
-    std::cout << "Zip: " << person["address"]["zip"].as<int>() << std::endl;
+    auto& person = result.value()["person"];
+    std::cout << "Name: " << person["name"].as<std::string>().value_or("N/A") << std::endl;
+    std::cout << "Age: " << person["age"].as<int>().value_or(0) << std::endl;
+    std::cout << "Email: " << person["email"].as<std::string>().value_or("N/A") << std::endl;
+    std::cout << "Street: " << person["address"]["street"].as<std::string>().value_or("N/A") << std::endl;
+    std::cout << "City: " << person["address"]["city"].as<std::string>().value_or("N/A") << std::endl;
+    std::cout << "Zip: " << person["address"]["zip"].as<int>().value_or(0) << std::endl;
 }

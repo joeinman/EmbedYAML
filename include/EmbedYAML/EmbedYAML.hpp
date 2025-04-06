@@ -10,9 +10,15 @@
 
 #pragma once
 
-#include <yaml.h>
+#include <expected>
+#include <string>
 
-#include "Node.hpp"
+#include "EmbedYAML/Error.hpp"
+#include "EmbedYAML/Node.hpp"
+
+extern "C" {
+#include <yaml.h>
+}
 
 namespace EmbedYAML
 {
@@ -20,15 +26,38 @@ namespace EmbedYAML
 class EmbedYAML
 {
 public:
-    std::optional<Node>        parse(const std::string& input) const noexcept;
-    std::optional<std::string> emit(const Node& node) const noexcept;
+    // Parse a YAML input string into a Node.
+    std::expected<Node, EmbedYAMLError> parse(const std::string& input) const noexcept;
+
+    // Emit a YAML document from a Node.
+    std::expected<std::string, EmbedYAMLError> emit(const Node& node) const noexcept;
 
 private:
-    bool parseNode(yaml_parser_t& parser, Node& node) const noexcept;
-    bool parseNodeFromEvent(yaml_parser_t& parser, yaml_event_t& event, Node& node) const noexcept;
+    // Parsing functions.
+    bool        parseNode(yaml_parser_t& parser, Node& node) const noexcept;
+    bool        parseNodeFromEvent(yaml_parser_t& parser, yaml_event_t& event, Node& node) const noexcept;
+    static bool parseScalarEvent(yaml_event_t& event, Node& node) noexcept;
+    static bool parseSequenceEvent(yaml_parser_t&   parser,
+                                   yaml_event_t&    event,
+                                   Node&            node,
+                                   const EmbedYAML* self) noexcept;
+    static bool parseMappingEvent(yaml_parser_t&   parser,
+                                  yaml_event_t&    event,
+                                  Node&            node,
+                                  const EmbedYAML* self) noexcept;
 
-    std::optional<std::string> emitNode(const Node& node, int indentLevel) const noexcept;
-    std::string indentString(int indentLevel) const noexcept { return std::string(indentLevel * 2, ' '); };
+    // Emitting function.
+    std::expected<std::string, EmbedYAMLError>        emitNode(const Node& node, int indentLevel) const noexcept;
+    static std::expected<std::string, EmbedYAMLError> emitScalar(const Node& node) noexcept;
+    static std::expected<std::string, EmbedYAMLError> emitSequence(const Node&      node,
+                                                                   int              indentLevel,
+                                                                   const EmbedYAML* self) noexcept;
+    static std::expected<std::string, EmbedYAMLError> emitMapping(const Node&      node,
+                                                                  int              indentLevel,
+                                                                  const EmbedYAML* self) noexcept;
+
+    // Generate an indent string.
+    std::string indentString(int indentLevel) const noexcept { return std::string(indentLevel * 2, ' '); }
 };
 
 }  // namespace EmbedYAML
