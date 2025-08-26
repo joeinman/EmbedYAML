@@ -18,7 +18,7 @@ target_link_libraries(EmbedYAML PUBLIC
     yaml
 )
 
-option(BUILD_EXAMPLES "Build examples" OFF)
-if (BUILD_EXAMPLES)
+option(EMBEDYAML_BUILD_EXAMPLES "Build examples" OFF)
+if (EMBEDYAML_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
