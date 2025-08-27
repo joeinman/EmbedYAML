@@ -14,6 +14,10 @@ target_sources(EmbedYAML PRIVATE
 target_include_directories(EmbedYAML PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
+target_include_directories(EmbedYAML SYSTEM INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 target_link_libraries(EmbedYAML PUBLIC
     yaml
 )
